@@ -96,7 +96,7 @@ public:
 	
 public:
 	UFUNCTION(BlueprintCallable)
-	void InitPrompt(const FString& Prompt, const FString& Type, const FString& Function);
+	void InitPrompt(const FString& Prompt,const FString& _Game_ID);
 	
 	UFUNCTION(BlueprintCallable)
 	void ClearContext(){ this->AllContext.Empty(); }; 
@@ -105,7 +105,6 @@ public:
 	void ChatToAI(
 		const FString& AuthToken,
 		const FString& Message,
-		bool IsMeet,
 		const FString& Model = "deepseek-chat",
 		double temperature = 0.7,
 		bool stream = false);
@@ -145,7 +144,7 @@ public://===================== 委托 ========================//
 private:
 	FString SystemPrompt;
 	TArray<FChatContext> AllContext;
-	FString Game_ID = "8230bfea-509c-40d9-b961-f3361ee6fdde";
+	FString Game_ID ;
 	FString ChatURL = FString::Format(TEXT("https://playkit.agentlandlab.com/ai/{0}/v1/chat"), {Game_ID});
 	
 	FPlayKitChatResponse LastCompletedResponse;

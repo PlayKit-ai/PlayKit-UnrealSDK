@@ -111,70 +111,15 @@ void UChat::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentT
 	// ...
 }
 
-void UChat::InitPrompt(const FString& Prompt, const FString& Type, const FString& Function)
+void UChat::InitPrompt(const FString& Prompt,const FString& _Game_ID)
 {
-	this->SystemPrompt = FString::Printf(TEXT(R"(
-你是一个游戏中的NPC，必须根据以下角色描述扮演角色。
-{
-"角色设定": "%s",
-"角色类型": "%s"
-}
-
-在对话时，你必须： 
-1. 根据用户输入和场景信息，先给出一段 NPC 的自然回复（符合角色设定）。 
-2. 回复应该根据角色类型的不同而改变。
-2.1. 如果你的角色类型是【NPC】，则代表你是一个非玩家角色，用扮演这个角色的角度回复。
-2.2. 如果你的角色类型是【场景】，则代表你扮演的是一个场景，请以第三人称探索的角度回复，详细生动描述玩家是如何在这个场景里探索的
-2.3. 如果你的角色类型是【道具】，则代表你扮演的是一个道具，而道具是不会说话的。因此请以玩家的第一人称【我】的角度回复，详细生动描述玩家是观察使用这个道具的
-3. 在回复后，提供 2–3 个相关的对话选项，供玩家选择。 每次回复的选项数量都不同。
-3.1. 如果你的角色类型是【场景】或【道具】，你可以用选项来提示玩家角色设定里的细节
-3.2. 如果你的角色类型是【NPC】，选项里则不能出现对话中尚未提到的内容
-4. 在给出对话选项后，再给出一个让玩家直接退出的选项，例如"退出xx"、"离开xx"或其它表达方式。
-5. 你的回复内容应随用户输入的 "type" 改变，比如首次见面要有开场白，再次见面时口吻有所不同。
-6. 此外，你可以调用以下函数与游戏世界交互。角色设定中可能包含【函数名】，以及这些函数的使用规则。如果触发了这些规则，你必须在 "functions" 里输出对应的调用。
-对于没有明确标出使用规则的函数，你可以根据需要自行调用。
-函数调用应以JSON格式返回，仅在需要时调用。
-
-[functions]
-%s
-
-请始终以JSON格式回复，确保JSON格式正确。禁止使用markdown。遵循以下结构： 
-{
-"think": "思考要如何扮演好自己的角色",
-"npc_text": "NPC的台词，符合角色设定，不允许出戏，不允许承认自己是角色设定以外的角色。当类型是【道具】时，则改为玩家的内心活动与动作，以"我"为人称。（字段内仅能使用单引号''） ",
-"options": [
-"选项1，选项中不得出现角色设定中禁止出现的内容",
-"选项2，选项中不得出现角色设定中禁止出现的内容",
-"选项3（如有），选项中不得出现角色设定中禁止出现的内容",
-"选项4（如有），选项中不得出现角色设定中禁止出现的内容",
-],
-"exit": "离开当前交互的文本，应简短且符合对话内容，该选项为玩家的行动，描述玩家是如何离开的，离开的内容应为对话整体，而不是某一个局部细节",    
-"functions": [
-{
-"call": "函数名 或 null"
-},
-{
-"call": "如果需要其它函数，则输出多个，否则只输出一个"
-}
-]
-}
-
-User输入格式
-用户会以 JSON 提供输入： 
-{
-"type": "meet" | "talk",
-"player_input": "玩家输入的文字"
-}
-- 当 "type": "meet"` → 用户想跟你进行对话，你来进行开场白。如果是首次meet，代表用户第一次找你对话，如果再次出现，说明用户是离开后再次找你对话。  
-- 当 "type": "talk"` → 角色正在与你对话。
-
-当用户第一次找你对话时，而外输出一个json键值对，列举出你认为不能在对话的选项中出现的内容，并以一个正则表达式的格式输出，如果涉及到解谜元素，不要在选项里透露出答案或密码。
-
-格式为
-"prohibited": ["能够筛选出禁止内容的正则表达式",……],
-)"), *Prompt, *Type, *Function);
+	this->Game_ID = _Game_ID;
+	this->SystemPrompt = Prompt;
+	this->ChatURL = FString::Format(TEXT("https://playkit.agentlandlab.com/ai/{0}/v1/chat"), {this->Game_ID});
+	
 	
 	UE_LOG(LogTemp, Display, TEXT("SystemPrompt: %s"), *this->SystemPrompt);
+	
 	
 	if (!this->AllContext.IsEmpty())
 	{
@@ -188,17 +133,11 @@ User输入格式
 }
 
 void UChat::ChatToAI(
-		const FString& AuthToken,
-		const FString& Message,
-		bool IsMeet,
-		const FString& Model,
-		double temperature ,
-		bool stream)
+		const FString& AuthToken,const FString& Message,const FString& Model,double temperature ,bool stream)
 {
 	////////////////////////////////// 设置输入和加到上下文 //////////////////////////////////
 	
 	TSharedPtr<FJsonObject> ContentObject = MakeShareable(new FJsonObject);
-	ContentObject->SetStringField(TEXT("type"), IsMeet ? TEXT("meet") : TEXT("talk"));
 	ContentObject->SetStringField(TEXT("message"), Message);
 	
 	FChatContext CurrentContext;
