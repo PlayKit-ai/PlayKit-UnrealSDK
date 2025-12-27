@@ -1,10 +1,10 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright PlayKit. All Rights Reserved.
 
 #pragma once
 
 #include "Modules/ModuleManager.h"
 
-class FDeveloperWorksUnrealSDKModule : public IModuleInterface
+class FPlayKitSDKModule : public IModuleInterface
 {
 public:
 

@@ -1,50 +1,53 @@
-// Some copyright should be here...
+// Copyright PlayKit. All Rights Reserved.
 
 using UnrealBuildTool;
 
-public class DeveloperWorksUnrealSDK : ModuleRules
+public class PlayKitSDK : ModuleRules
 {
-	public DeveloperWorksUnrealSDK(ReadOnlyTargetRules Target) : base(Target)
+	public PlayKitSDK(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-		
+
 		PublicIncludePaths.AddRange(
 			new string[] {
-				// ... add public include paths required here ...
+				ModuleDirectory,
 			}
 			);
-				
-		
+
+
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				// ... add other private include paths required here ...
+				ModuleDirectory,
 			}
 			);
-			
-		
+
+
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
+				"CoreUObject",
+				"Engine",
 				"HTTP",
 				"Json",
-				// ... add other public dependencies that you statically link with here ...
+				"JsonUtilities",
+				"AudioMixer",
+				"AudioCapture",
+				"ImageWrapper",
+				"DeveloperSettings",
 			}
 			);
-			
-		
+
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"CoreUObject",
-				"Engine",
 				"Slate",
 				"SlateCore",
-				// ... add private dependencies that you statically link with here ...	
 			}
 			);
-		
-		
+
+
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[]
 			{
