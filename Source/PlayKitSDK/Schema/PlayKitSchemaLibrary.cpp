@@ -184,6 +184,12 @@ FSchemaEntry UPlayKitSchemaLibrary::CreateEnumSchema(
 	const FString& Description,
 	const TArray<FString>& Options)
 {
+	// Client-side validation: warn if options array is empty
+	if (Options.Num() == 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[PlayKit] CreateEnumSchema: Options array is empty for schema '%s'"), *Name);
+	}
+
 	TSharedPtr<FJsonObject> SchemaObj = MakeShared<FJsonObject>();
 	SchemaObj->SetStringField(TEXT("type"), TEXT("string"));
 	SchemaObj->SetStringField(TEXT("description"), Description);
