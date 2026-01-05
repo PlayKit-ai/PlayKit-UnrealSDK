@@ -8,8 +8,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
 #include "Misc/Base64.h"
-#include "IImageWrapper.h"
-#include "IImageWrapperModule.h"
+#include "ImageUtils.h"
 
 UPlayKitImageClient::UPlayKitImageClient()
 {
@@ -220,42 +219,13 @@ UTexture2D* UPlayKitImageClient::Base64ToTexture2D(const FString& Base64Data)
 		return nullptr;
 	}
 
-	// Use ImageWrapper to load the image
-	IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-	TSharedPtr<IImageWrapper> ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
+	// Use FImageUtils which handles format detection automatically
+	UTexture2D* Texture = FImageUtils::ImportBufferAsTexture2D(DecodedData);
 
-	if (!ImageWrapper.IsValid())
-	{
-		ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
-	}
-
-	if (!ImageWrapper.IsValid() || !ImageWrapper->SetCompressed(DecodedData.GetData(), DecodedData.Num()))
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Failed to decompress image data"));
-		return nullptr;
-	}
-
-	TArray<uint8> RawData;
-	if (!ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Failed to get raw image data"));
-		return nullptr;
-	}
-
-	int32 Width = ImageWrapper->GetWidth();
-	int32 Height = ImageWrapper->GetHeight();
-
-	UTexture2D* Texture = UTexture2D::CreateTransient(Width, Height, PF_B8G8R8A8);
 	if (!Texture)
 	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Failed to create texture"));
-		return nullptr;
+		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Failed to create texture from image data"));
 	}
-
-	void* TextureData = Texture->GetPlatformData()->Mips[0].BulkData.Lock(LOCK_READ_WRITE);
-	FMemory::Memcpy(TextureData, RawData.GetData(), RawData.Num());
-	Texture->GetPlatformData()->Mips[0].BulkData.Unlock();
-	Texture->UpdateResource();
 
 	return Texture;
 }
