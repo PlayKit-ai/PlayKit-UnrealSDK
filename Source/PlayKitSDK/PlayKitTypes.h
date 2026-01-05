@@ -273,3 +273,184 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnTranscriptionError, const FStrin
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerInfoUpdated, FPlayKitPlayerInfo, PlayerInfo);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayerTokenReceived, const FString&, PlayerToken);
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnDailyCreditsRefreshed, FPlayKitDailyCreditsResult, Result);
+
+//========== 3D Generation Types ==========//
+
+/**
+ * 3D generation task status
+ */
+UENUM(BlueprintType)
+enum class EPlayKit3DTaskStatus : uint8
+{
+	Queued UMETA(DisplayName = "Queued"),
+	Running UMETA(DisplayName = "Running"),
+	Success UMETA(DisplayName = "Success"),
+	Failed UMETA(DisplayName = "Failed"),
+	Banned UMETA(DisplayName = "Banned"),
+	Expired UMETA(DisplayName = "Expired"),
+	Unknown UMETA(DisplayName = "Unknown")
+};
+
+/**
+ * Quality levels for texture and geometry
+ */
+UENUM(BlueprintType)
+enum class EPlayKit3DQuality : uint8
+{
+	Standard UMETA(DisplayName = "Standard"),
+	Detailed UMETA(DisplayName = "Detailed")
+};
+
+/**
+ * 3D model generation configuration
+ */
+USTRUCT(BlueprintType)
+struct PLAYKITSDK_API FPlayKit3DConfig
+{
+	GENERATED_BODY()
+
+	/** Text prompt describing the 3D model */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	FString Prompt;
+
+	/** Negative prompt (things to avoid) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	FString NegativePrompt;
+
+	/** Model version to use (e.g., "v2.5-20250123") */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	FString ModelVersion;
+
+	/** Enable texture generation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	bool bTexture = true;
+
+	/** Enable PBR materials */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	bool bPBR = true;
+
+	/** Texture quality */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	EPlayKit3DQuality TextureQuality = EPlayKit3DQuality::Standard;
+
+	/** Geometry quality */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	EPlayKit3DQuality GeometryQuality = EPlayKit3DQuality::Standard;
+
+	/** Texture seed for reproducibility (-1 for random) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	int32 TextureSeed = -1;
+
+	/** Maximum face count (0 = use default) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit", meta=(ClampMin="0", ClampMax="200000"))
+	int32 FaceLimit = 0;
+
+	/** Enable automatic size normalization */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	bool bAutoSize = false;
+
+	/** Generate quad topology */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	bool bQuad = false;
+
+	/** Enable smart low-poly optimization */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit")
+	bool bSmartLowPoly = false;
+};
+
+/**
+ * 3D model generation output
+ */
+USTRUCT(BlueprintType)
+struct PLAYKITSDK_API FPlayKit3DOutput
+{
+	GENERATED_BODY()
+
+	/** URL to the generated 3D model file (GLB format, valid for 5 minutes) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString ModelUrl;
+
+	/** URL to the PBR model file (if PBR was enabled) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString PBRModelUrl;
+
+	/** URL to the rendered preview image */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString RenderedImageUrl;
+
+	/** When the model was generated */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FDateTime GeneratedAt;
+};
+
+/**
+ * 3D generation task information
+ */
+USTRUCT(BlueprintType)
+struct PLAYKITSDK_API FPlayKit3DTask
+{
+	GENERATED_BODY()
+
+	/** Unique task ID */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString TaskId;
+
+	/** Current task status */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	EPlayKit3DTaskStatus Status = EPlayKit3DTaskStatus::Unknown;
+
+	/** Progress percentage (0-100) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	int32 Progress = 0;
+
+	/** Recommended poll interval in seconds */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	int32 PollInterval = 5;
+
+	/** Task creation timestamp (Unix time) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	int64 CreatedAt = 0;
+
+	/** Task completion timestamp (Unix time, if completed) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	int64 CompletedAt = 0;
+
+	/** Output data (valid when Status == Success) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FPlayKit3DOutput Output;
+
+	/** Error code (if failed) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString ErrorCode;
+
+	/** Error message (if failed) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString ErrorMessage;
+};
+
+/**
+ * Complete 3D generation response
+ */
+USTRUCT(BlueprintType)
+struct PLAYKITSDK_API FPlayKit3DResponse
+{
+	GENERATED_BODY()
+
+	/** Success flag */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	bool bSuccess = false;
+
+	/** Task information */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FPlayKit3DTask Task;
+
+	/** Error message (if failed) */
+	UPROPERTY(BlueprintReadOnly, Category="PlayKit")
+	FString ErrorMessage;
+};
+
+// 3D Generation delegates
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayKit3DProgress, const FString&, TaskId, int32, Progress);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnPlayKit3DStatusChanged, const FString&, TaskId, EPlayKit3DTaskStatus, OldStatus, EPlayKit3DTaskStatus, NewStatus);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPlayKit3DCompleted, FPlayKit3DResponse, Response);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPlayKit3DError, const FString&, ErrorCode, const FString&, ErrorMessage);

@@ -260,6 +260,12 @@ private:
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> CreateAuthenticatedRequest(const FString& Url);
 	void ParseActionCalls(const TSharedPtr<FJsonObject>& JsonObject, TArray<FNPCActionCall>& OutActionCalls);
 
+	// Reply prediction helpers
+	TArray<FString> ParsePredictionsFromJson(const FString& Response);
+	TArray<FString> ExtractPredictionsFromText(const FString& Response, int32 ExpectedCount);
+	FString BuildRecentHistoryString() const;
+	FString GetLastNPCMessage() const;
+
 	// Settings helpers
 	FString GetBaseUrl() const;
 	FString GetGameId() const;

@@ -604,38 +604,55 @@ void UPlayKitNPCClient::GenerateReplyPredictions(int32 Count)
 		return;
 	}
 
-	if (ConversationHistory.Num() == 0)
+	if (ConversationHistory.Num() < 2)
 	{
-		OnError.Broadcast(TEXT("NO_HISTORY"), TEXT("No conversation history to generate predictions from"));
+		OnError.Broadcast(TEXT("NO_HISTORY"), TEXT("Not enough conversation history to generate predictions"));
+		return;
+	}
+
+	// Get last NPC message
+	FString LastNPCMessage = GetLastNPCMessage();
+	if (LastNPCMessage.IsEmpty())
+	{
+		OnError.Broadcast(TEXT("NO_NPC_MESSAGE"), TEXT("No NPC message found to generate predictions from"));
 		return;
 	}
 
 	const FString Url = FString::Printf(TEXT("%s/ai/%s/v2/chat"), *GetBaseUrl(), *GetGameId());
 	PredictionsRequest = CreateAuthenticatedRequest(Url);
 
-	// Build messages for prediction
+	// Build the prompt with detailed context (aligned with Unity SDK)
+	FString RecentHistory = BuildRecentHistoryString();
+
+	FString PromptContent = FString::Printf(
+		TEXT("Based on the conversation history below, generate exactly %d natural and contextually appropriate responses that the player might say next.\n\n")
+		TEXT("Context:\n")
+		TEXT("- This is a conversation between a player and an NPC in a game\n")
+		TEXT("- The NPC just said: \"%s\"\n\n")
+		TEXT("Conversation history:\n%s\n\n")
+		TEXT("Requirements:\n")
+		TEXT("1. Each response should be 1-2 sentences maximum\n")
+		TEXT("2. Responses should be diverse in tone and intent\n")
+		TEXT("3. Include a mix of questions, statements, and action-oriented responses\n")
+		TEXT("4. Responses should feel natural for a player character\n\n")
+		TEXT("Output ONLY a JSON array of %d strings, nothing else:\n")
+		TEXT("[\"response1\", \"response2\", \"response3\"]"),
+		Count, *LastNPCMessage, *RecentHistory, Count
+	);
+
+	// Build messages array - only the prompt, no history needed in messages
 	TArray<TSharedPtr<FJsonValue>> MessagesArray;
-
-	// Add history
-	for (const FNPCMessage& Msg : ConversationHistory)
-	{
-		TSharedPtr<FJsonObject> MsgObj = MakeShared<FJsonObject>();
-		MsgObj->SetStringField(TEXT("role"), Msg.Role);
-		MsgObj->SetStringField(TEXT("content"), Msg.Content);
-		MessagesArray.Add(MakeShared<FJsonValueObject>(MsgObj));
-	}
-
-	// Add prediction request
 	TSharedPtr<FJsonObject> PredictMsg = MakeShared<FJsonObject>();
 	PredictMsg->SetStringField(TEXT("role"), TEXT("user"));
-	PredictMsg->SetStringField(TEXT("content"), FString::Printf(
-		TEXT("Based on this conversation, suggest %d possible player responses. Return only a JSON array of strings."),
-		Count
-	));
+	PredictMsg->SetStringField(TEXT("content"), PromptContent);
 	MessagesArray.Add(MakeShared<FJsonValueObject>(PredictMsg));
 
+	// Build request body - USE FAST MODEL
+	UPlayKitSettings* Settings = UPlayKitSettings::Get();
+	FString FastModelName = Settings ? Settings->FastModel : TEXT("gpt-4o-mini");
+
 	TSharedPtr<FJsonObject> RequestBody = MakeShared<FJsonObject>();
-	RequestBody->SetStringField(TEXT("model"), Model);
+	RequestBody->SetStringField(TEXT("model"), FastModelName);
 	RequestBody->SetArrayField(TEXT("messages"), MessagesArray);
 	RequestBody->SetNumberField(TEXT("temperature"), 0.8f);
 
@@ -647,6 +664,7 @@ void UPlayKitNPCClient::GenerateReplyPredictions(int32 Count)
 	PredictionsRequest->OnProcessRequestComplete().BindUObject(
 		this, &UPlayKitNPCClient::HandlePredictionsResponse);
 
+	UE_LOG(LogTemp, Log, TEXT("[NPCClient] Generating %d predictions using model: %s"), Count, *FastModelName);
 	PredictionsRequest->ProcessRequest();
 }
 
@@ -654,6 +672,7 @@ void UPlayKitNPCClient::HandlePredictionsResponse(FHttpRequestPtr Request, FHttp
 {
 	if (!bWasSuccessful || !Response.IsValid() || Response->GetResponseCode() != 200)
 	{
+		UE_LOG(LogTemp, Warning, TEXT("[NPCClient] Failed to generate predictions: HTTP error"));
 		OnError.Broadcast(TEXT("PREDICTION_ERROR"), TEXT("Failed to generate predictions"));
 		return;
 	}
@@ -662,7 +681,8 @@ void UPlayKitNPCClient::HandlePredictionsResponse(FHttpRequestPtr Request, FHttp
 	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Response->GetContentAsString());
 	if (!FJsonSerializer::Deserialize(Reader, JsonObject))
 	{
-		OnError.Broadcast(TEXT("PARSE_ERROR"), TEXT("Failed to parse predictions"));
+		UE_LOG(LogTemp, Warning, TEXT("[NPCClient] Failed to parse predictions response JSON"));
+		OnError.Broadcast(TEXT("PARSE_ERROR"), TEXT("Failed to parse predictions response"));
 		return;
 	}
 
@@ -678,19 +698,181 @@ void UPlayKitNPCClient::HandlePredictionsResponse(FHttpRequestPtr Request, FHttp
 			FString Content;
 			if ((*MessagePtr)->TryGetStringField(TEXT("content"), Content))
 			{
-				// Try to parse as JSON array
-				TArray<TSharedPtr<FJsonValue>> PredictionsArray;
-				TSharedRef<TJsonReader<>> ArrayReader = TJsonReaderFactory<>::Create(Content);
-				if (FJsonSerializer::Deserialize(ArrayReader, PredictionsArray))
+				// Primary: Try to parse as JSON array
+				Predictions = ParsePredictionsFromJson(Content);
+
+				// Fallback: If JSON parsing failed or returned empty, try text extraction
+				if (Predictions.Num() == 0)
 				{
-					for (const TSharedPtr<FJsonValue>& Value : PredictionsArray)
-					{
-						Predictions.Add(Value->AsString());
-					}
+					UE_LOG(LogTemp, Log, TEXT("[NPCClient] JSON parsing failed, trying text extraction fallback"));
+					Predictions = ExtractPredictionsFromText(Content, PredictionCount);
 				}
 			}
 		}
 	}
 
-	OnReplyPredictionsGenerated.Broadcast(Predictions);
+	if (Predictions.Num() > 0)
+	{
+		UE_LOG(LogTemp, Log, TEXT("[NPCClient] Generated %d reply predictions"), Predictions.Num());
+		OnReplyPredictionsGenerated.Broadcast(Predictions);
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[NPCClient] No predictions could be extracted from response"));
+		OnError.Broadcast(TEXT("PARSE_ERROR"), TEXT("Failed to extract predictions from response"));
+	}
+}
+
+//========== Reply Prediction Helpers ==========//
+
+TArray<FString> UPlayKitNPCClient::ParsePredictionsFromJson(const FString& Response)
+{
+	TArray<FString> Predictions;
+
+	// Find JSON array boundaries
+	int32 StartIndex = Response.Find(TEXT("["));
+	int32 EndIndex = Response.Find(TEXT("]"), ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+
+	if (StartIndex == INDEX_NONE || EndIndex == INDEX_NONE || EndIndex <= StartIndex)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("[NPCClient] Could not find JSON array in prediction response"));
+		return Predictions;
+	}
+
+	FString JsonArray = Response.Mid(StartIndex, EndIndex - StartIndex + 1);
+
+	// Manual JSON array parsing (similar to Unity SDK approach)
+	bool bInString = false;
+	bool bEscaped = false;
+	FString CurrentString;
+
+	for (int32 i = 1; i < JsonArray.Len() - 1; i++)
+	{
+		TCHAR c = JsonArray[i];
+
+		if (bEscaped)
+		{
+			CurrentString.AppendChar(c);
+			bEscaped = false;
+			continue;
+		}
+
+		if (c == TEXT('\\'))
+		{
+			bEscaped = true;
+			continue;
+		}
+
+		if (c == TEXT('"'))
+		{
+			if (bInString)
+			{
+				// End of string
+				FString Trimmed = CurrentString.TrimStartAndEnd();
+				if (!Trimmed.IsEmpty())
+				{
+					Predictions.Add(Trimmed);
+				}
+				CurrentString.Empty();
+			}
+			bInString = !bInString;
+			continue;
+		}
+
+		if (bInString)
+		{
+			CurrentString.AppendChar(c);
+		}
+	}
+
+	return Predictions;
+}
+
+TArray<FString> UPlayKitNPCClient::ExtractPredictionsFromText(const FString& Response, int32 ExpectedCount)
+{
+	TArray<FString> Predictions;
+	TArray<FString> Lines;
+	Response.ParseIntoArray(Lines, TEXT("\n"), true);
+
+	for (const FString& Line : Lines)
+	{
+		FString Trimmed = Line.TrimStartAndEnd();
+
+		// Skip empty lines and JSON brackets
+		if (Trimmed.IsEmpty() || Trimmed == TEXT("[") || Trimmed == TEXT("]"))
+		{
+			continue;
+		}
+
+		FString Cleaned = Trimmed;
+
+		// Remove common prefixes like "1.", "2.", etc.
+		if (Cleaned.Len() > 2 && FChar::IsDigit(Cleaned[0]) && Cleaned[1] == TEXT('.'))
+		{
+			Cleaned = Cleaned.RightChop(2).TrimStartAndEnd();
+		}
+		// Remove "- " prefix
+		else if (Cleaned.StartsWith(TEXT("- ")))
+		{
+			Cleaned = Cleaned.RightChop(2).TrimStartAndEnd();
+		}
+
+		// Remove surrounding quotes
+		if (Cleaned.StartsWith(TEXT("\"")) && Cleaned.EndsWith(TEXT("\"")))
+		{
+			Cleaned = Cleaned.Mid(1, Cleaned.Len() - 2);
+		}
+
+		// Remove trailing comma
+		if (Cleaned.EndsWith(TEXT(",")))
+		{
+			Cleaned = Cleaned.LeftChop(1).TrimStartAndEnd();
+		}
+
+		// Remove surrounding quotes again (in case of nested)
+		if (Cleaned.StartsWith(TEXT("\"")) && Cleaned.EndsWith(TEXT("\"")))
+		{
+			Cleaned = Cleaned.Mid(1, Cleaned.Len() - 2);
+		}
+
+		if (!Cleaned.IsEmpty() && Predictions.Num() < ExpectedCount)
+		{
+			Predictions.Add(Cleaned);
+		}
+	}
+
+	return Predictions;
+}
+
+FString UPlayKitNPCClient::BuildRecentHistoryString() const
+{
+	TArray<FString> RecentMessages;
+	int32 Count = 0;
+	const int32 MaxMessages = 6;  // Unity SDK uses last 6 non-system messages
+
+	// Iterate from end to get most recent messages
+	for (int32 i = ConversationHistory.Num() - 1; i >= 0 && Count < MaxMessages; i--)
+	{
+		const FNPCMessage& Msg = ConversationHistory[i];
+		if (Msg.Role != TEXT("system"))
+		{
+			RecentMessages.Insert(FString::Printf(TEXT("%s: %s"), *Msg.Role, *Msg.Content), 0);
+			Count++;
+		}
+	}
+
+	return FString::Join(RecentMessages, TEXT("\n"));
+}
+
+FString UPlayKitNPCClient::GetLastNPCMessage() const
+{
+	// Find the last assistant message
+	for (int32 i = ConversationHistory.Num() - 1; i >= 0; i--)
+	{
+		if (ConversationHistory[i].Role == TEXT("assistant"))
+		{
+			return ConversationHistory[i].Content;
+		}
+	}
+	return FString();
 }
