@@ -3,14 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Components/ActorComponent.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Engine/Texture2D.h"
 #include "PlayKitTypes.h"
 #include "PlayKitImageClient.generated.h"
 
 /**
- * PlayKit Image Client
+ * PlayKit Image Client Component
  * Provides AI image generation functionality.
  *
  * Features:
@@ -20,22 +20,47 @@
  * - Base64 to Texture2D conversion
  *
  * Usage:
- * UPlayKitImageClient* ImageClient = UPlayKitBlueprintLibrary::CreateImageClient();
- * ImageClient->OnImageGenerated.AddDynamic(this, &AMyActor::HandleImage);
- * ImageClient->GenerateImage("A beautiful sunset over mountains");
+ * 1. Add this component to any Actor in the editor
+ * 2. Configure properties in the Details panel (ModelName, Size, etc.)
+ * 3. Bind to events using the "+" button (OnImageGenerated, OnError)
+ * 4. Call GenerateImage() with a prompt to start generation
  */
-UCLASS(BlueprintType)
-class PLAYKITSDK_API UPlayKitImageClient : public UObject
+UCLASS(ClassGroup=(PlayKit), meta=(BlueprintSpawnableComponent))
+class PLAYKITSDK_API UPlayKitImageClient : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	UPlayKitImageClient();
 
-	/** Initialize the client with a model name */
-	void Initialize(const FString& InModelName);
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//========== Events ==========//
+public:
+	//========== Configuration Properties (Edit in Details Panel) ==========//
+
+	/** The AI model to use for image generation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Image")
+	FString ModelName = TEXT("dall-e-3");
+
+	/** Default image size (e.g., "1024x1024", "1792x1024", "1024x1792") */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Image")
+	FString ImageSize = TEXT("1024x1024");
+
+	/** Image quality (standard or hd) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Image")
+	FString Quality = TEXT("standard");
+
+	/** Number of images to generate (1-10) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Image", meta=(ClampMin="1", ClampMax="10"))
+	int32 ImageCount = 1;
+
+	/** Seed for reproducible results (-1 for random) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Image")
+	int32 Seed = -1;
+
+	//========== Events (Click "+" to bind in Blueprint) ==========//
 
 	/** Fired when a single image is generated */
 	UPROPERTY(BlueprintAssignable, Category="PlayKit|Image")
@@ -49,42 +74,51 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="PlayKit|Image")
 	FOnImageError OnError;
 
-	//========== Properties ==========//
-
-	/** Get the model name this client is using */
-	UFUNCTION(BlueprintPure, Category="PlayKit|Image")
-	FString GetModelName() const { return ModelName; }
+	//========== Status ==========//
 
 	/** Check if a request is currently in progress */
 	UFUNCTION(BlueprintPure, Category="PlayKit|Image")
 	bool IsProcessing() const { return bIsProcessing; }
 
+	//========== Configuration Methods ==========//
+
+	/** Set the model name at runtime */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Image")
+	void SetModelName(const FString& InModelName) { ModelName = InModelName; }
+
+	/** Set the image size at runtime */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Image")
+	void SetImageSize(const FString& InSize) { ImageSize = InSize; }
+
+	/** Set the quality at runtime */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Image")
+	void SetQuality(const FString& InQuality) { Quality = InQuality; }
+
 	//========== Image Generation ==========//
 
 	/**
-	 * Generate a single image from a text prompt.
+	 * Generate an image from a text prompt.
+	 * Uses the component's configured properties (ModelName, ImageSize, etc.).
 	 * @param Prompt Text description of the desired image
-	 * @param Size Image size (e.g., "1024x1024")
 	 */
 	UFUNCTION(BlueprintCallable, Category="PlayKit|Image", meta=(DisplayName="Generate Image"))
-	void GenerateImage(const FString& Prompt, const FString& Size = TEXT("1024x1024"));
+	void GenerateImage(const FString& Prompt);
 
 	/**
-	 * Generate a single image with seed for reproducibility.
+	 * Generate an image with a specific seed for reproducibility.
 	 * @param Prompt Text description of the desired image
-	 * @param Size Image size
-	 * @param Seed Seed for reproducible results (-1 for random)
+	 * @param InSeed Seed for reproducible results
 	 */
 	UFUNCTION(BlueprintCallable, Category="PlayKit|Image", meta=(DisplayName="Generate Image With Seed"))
-	void GenerateImageWithSeed(const FString& Prompt, const FString& Size, int32 Seed);
+	void GenerateImageWithSeed(const FString& Prompt, int32 InSeed);
 
 	/**
-	 * Generate multiple images from a text prompt.
+	 * Generate multiple images with full configuration.
 	 * @param Prompt Text description of the desired images
 	 * @param Options Generation options
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Image", meta=(DisplayName="Generate Images"))
-	void GenerateImages(const FString& Prompt, const FPlayKitImageOptions& Options);
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Image", meta=(DisplayName="Generate Images (Advanced)"))
+	void GenerateImagesAdvanced(const FString& Prompt, const FPlayKitImageOptions& Options);
 
 	//========== Utility ==========//
 
@@ -107,7 +141,6 @@ private:
 	void BroadcastError(const FString& ErrorCode, const FString& ErrorMessage);
 
 private:
-	FString ModelName;
 	bool bIsProcessing = false;
 	FString LastPrompt;
 

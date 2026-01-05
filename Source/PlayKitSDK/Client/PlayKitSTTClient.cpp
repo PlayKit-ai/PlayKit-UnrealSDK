@@ -11,12 +11,25 @@
 
 UPlayKitSTTClient::UPlayKitSTTClient()
 {
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPlayKitSTTClient::Initialize(const FString& InModelName)
+void UPlayKitSTTClient::BeginPlay()
 {
-	ModelName = InModelName;
-	UE_LOG(LogTemp, Log, TEXT("[PlayKit] STTClient initialized with model: %s"), *ModelName);
+	Super::BeginPlay();
+
+	if (ModelName.IsEmpty())
+	{
+		ModelName = TEXT("whisper-large");
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PlayKit] STTClient component initialized with model: %s"), *ModelName);
+}
+
+void UPlayKitSTTClient::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelRequest();
+	Super::EndPlay(EndPlayReason);
 }
 
 TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitSTTClient::CreateAuthenticatedRequest(const FString& Url)
@@ -40,7 +53,12 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitSTTClient::CreateAuthentic
 	return Request;
 }
 
-void UPlayKitSTTClient::TranscribeFile(const FString& FilePath, const FString& Language)
+void UPlayKitSTTClient::TranscribeFile(const FString& FilePath)
+{
+	TranscribeFileWithLanguage(FilePath, Language);
+}
+
+void UPlayKitSTTClient::TranscribeFileWithLanguage(const FString& FilePath, const FString& InLanguage)
 {
 	if (bIsProcessing)
 	{
@@ -62,10 +80,10 @@ void UPlayKitSTTClient::TranscribeFile(const FString& FilePath, const FString& L
 	}
 
 	FString FileName = FPaths::GetCleanFilename(FilePath);
-	SendTranscriptionRequest(FileData, FileName, Language);
+	SendTranscriptionRequest(FileData, FileName, InLanguage);
 }
 
-void UPlayKitSTTClient::TranscribeAudioData(const TArray<uint8>& AudioData, const FString& FileName, const FString& Language)
+void UPlayKitSTTClient::TranscribeAudioData(const TArray<uint8>& AudioData, const FString& FileName)
 {
 	if (bIsProcessing)
 	{
@@ -82,7 +100,7 @@ void UPlayKitSTTClient::TranscribeAudioData(const TArray<uint8>& AudioData, cons
 	SendTranscriptionRequest(AudioData, FileName, Language);
 }
 
-void UPlayKitSTTClient::SendTranscriptionRequest(const TArray<uint8>& AudioData, const FString& FileName, const FString& Language)
+void UPlayKitSTTClient::SendTranscriptionRequest(const TArray<uint8>& AudioData, const FString& FileName, const FString& InLanguage)
 {
 	UPlayKitSettings* Settings = UPlayKitSettings::Get();
 	if (!Settings)
@@ -91,7 +109,7 @@ void UPlayKitSTTClient::SendTranscriptionRequest(const TArray<uint8>& AudioData,
 		return;
 	}
 
-	FString Url = FString::Printf(TEXT("%s/ai/%s/v1/audio/transcriptions"), *Settings->GetBaseUrl(), *Settings->GameId);
+	FString Url = FString::Printf(TEXT("%s/ai/%s/v2/audio/transcriptions"), *Settings->GetBaseUrl(), *Settings->GameId);
 
 	bIsProcessing = true;
 
@@ -107,9 +125,9 @@ void UPlayKitSTTClient::SendTranscriptionRequest(const TArray<uint8>& AudioData,
 	}
 
 	// Add language field if specified
-	if (!Language.IsEmpty())
+	if (!InLanguage.IsEmpty())
 	{
-		FString FieldHeader = FString::Printf(TEXT("--%s\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n%s\r\n"), *Boundary, *Language);
+		FString FieldHeader = FString::Printf(TEXT("--%s\r\nContent-Disposition: form-data; name=\"language\"\r\n\r\n%s\r\n"), *Boundary, *InLanguage);
 		RequestBody.Append((uint8*)TCHAR_TO_UTF8(*FieldHeader), FieldHeader.Len());
 	}
 

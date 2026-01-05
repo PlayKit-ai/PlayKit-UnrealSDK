@@ -7,21 +7,51 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Dom/JsonObject.h"
-
-UPlayKitPlayerClient* UPlayKitPlayerClient::SingletonInstance = nullptr;
+#include "Engine/GameInstance.h"
 
 UPlayKitPlayerClient::UPlayKitPlayerClient()
 {
 }
 
-UPlayKitPlayerClient* UPlayKitPlayerClient::Get()
+void UPlayKitPlayerClient::Initialize(FSubsystemCollectionBase& Collection)
 {
-	if (!SingletonInstance)
+	Super::Initialize(Collection);
+	UE_LOG(LogTemp, Log, TEXT("[PlayKit] PlayerClient subsystem initialized"));
+}
+
+void UPlayKitPlayerClient::Deinitialize()
+{
+	// Cancel any pending requests
+	if (CurrentRequest.IsValid())
 	{
-		SingletonInstance = NewObject<UPlayKitPlayerClient>();
-		SingletonInstance->AddToRoot(); // Prevent garbage collection
+		CurrentRequest->CancelRequest();
+		CurrentRequest.Reset();
 	}
-	return SingletonInstance;
+
+	UE_LOG(LogTemp, Log, TEXT("[PlayKit] PlayerClient subsystem deinitialized"));
+	Super::Deinitialize();
+}
+
+UPlayKitPlayerClient* UPlayKitPlayerClient::Get(const UObject* WorldContextObject)
+{
+	if (!WorldContextObject)
+	{
+		return nullptr;
+	}
+
+	UWorld* World = WorldContextObject->GetWorld();
+	if (!World)
+	{
+		return nullptr;
+	}
+
+	UGameInstance* GameInstance = World->GetGameInstance();
+	if (!GameInstance)
+	{
+		return nullptr;
+	}
+
+	return GameInstance->GetSubsystem<UPlayKitPlayerClient>();
 }
 
 bool UPlayKitPlayerClient::HasValidToken() const

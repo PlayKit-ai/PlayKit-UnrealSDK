@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Components/ActorComponent.h"
 #include "Interfaces/IHttpRequest.h"
 #include "PlayKitTypes.h"
 #include "PlayKitChatClient.generated.h"
 
 /**
- * PlayKit Chat Client
+ * PlayKit Chat Client Component
  * Provides AI text generation and chat functionality.
  *
  * Features:
@@ -19,22 +19,43 @@
  * - Tool calling support
  *
  * Usage:
- * UPlayKitChatClient* ChatClient = UPlayKitBlueprintLibrary::CreateChatClient();
- * ChatClient->OnChatResponse.AddDynamic(this, &AMyActor::HandleChatResponse);
- * ChatClient->TextGeneration(Config);
+ * 1. Add this component to any Actor in the editor
+ * 2. Configure properties in the Details panel (ModelName, Temperature, etc.)
+ * 3. Bind to events using the "+" button (OnChatResponse, OnStreamChunk, etc.)
+ * 4. Call GenerateText() or GenerateTextStream() to start generation
  */
-UCLASS(BlueprintType)
-class PLAYKITSDK_API UPlayKitChatClient : public UObject
+UCLASS(ClassGroup=(PlayKit), meta=(BlueprintSpawnableComponent))
+class PLAYKITSDK_API UPlayKitChatClient : public UActorComponent
 {
 	GENERATED_BODY()
 
 public:
 	UPlayKitChatClient();
 
-	/** Initialize the client with a model name */
-	void Initialize(const FString& InModelName);
+protected:
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
-	//========== Events ==========//
+public:
+	//========== Configuration Properties (Edit in Details Panel) ==========//
+
+	/** The AI model to use for chat */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Chat")
+	FString ModelName = TEXT("gpt-4o-mini");
+
+	/** Temperature for response generation (0.0-2.0). Higher = more creative */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Chat", meta=(ClampMin="0.0", ClampMax="2.0"))
+	float Temperature = 0.7f;
+
+	/** Maximum tokens to generate (0 = no limit) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Chat", meta=(ClampMin="0"))
+	int32 MaxTokens = 0;
+
+	/** Default system prompt */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|Chat", meta=(MultiLine=true))
+	FString SystemPrompt;
+
+	//========== Events (Click "+" to bind in Blueprint) ==========//
 
 	/** Fired when chat response is received (non-streaming) */
 	UPROPERTY(BlueprintAssignable, Category="PlayKit|Chat")
@@ -52,47 +73,59 @@ public:
 	UPROPERTY(BlueprintAssignable, Category="PlayKit|Chat")
 	FOnChatError OnError;
 
-	//========== Properties ==========//
+	/** Delegate for structured output response */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStructuredResponse, bool, bSuccess, const FString&, JsonResult);
 
-	/** Get the model name this client is using */
-	UFUNCTION(BlueprintPure, Category="PlayKit|Chat")
-	FString GetModelName() const { return ModelName; }
+	UPROPERTY(BlueprintAssignable, Category="PlayKit|Chat|Structured")
+	FOnStructuredResponse OnStructuredResponse;
+
+	//========== Status ==========//
 
 	/** Check if a request is currently in progress */
 	UFUNCTION(BlueprintPure, Category="PlayKit|Chat")
 	bool IsProcessing() const { return bIsProcessing; }
 
+	//========== Configuration Methods ==========//
+
+	/** Set the model name at runtime */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat")
+	void SetModelName(const FString& InModelName) { ModelName = InModelName; }
+
+	/** Set the temperature at runtime */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat")
+	void SetTemperature(float InTemperature) { Temperature = FMath::Clamp(InTemperature, 0.0f, 2.0f); }
+
 	//========== Text Generation ==========//
 
 	/**
-	 * Generate text from a simple prompt.
+	 * Generate text from a simple prompt (non-streaming).
+	 * Uses the component's configured ModelName and Temperature.
 	 * @param Prompt The user's message
-	 * @param Temperature Temperature for response (0.0-2.0)
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Text Generation (Simple)"))
-	void TextGenerationSimple(const FString& Prompt, float Temperature = 0.7f);
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Generate Text"))
+	void GenerateText(const FString& Prompt);
 
 	/**
-	 * Generate text with full configuration.
+	 * Generate text with full configuration (non-streaming).
 	 * @param Config Chat configuration with messages and settings
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Text Generation"))
-	void TextGeneration(const FPlayKitChatConfig& Config);
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Generate Text (Advanced)"))
+	void GenerateTextAdvanced(const FPlayKitChatConfig& Config);
 
 	/**
 	 * Generate text with streaming response.
+	 * Each chunk fires OnStreamChunk, completion fires OnStreamComplete.
 	 * @param Prompt The user's message
-	 * @param Temperature Temperature for response (0.0-2.0)
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Text Chat Stream (Simple)"))
-	void TextChatStreamSimple(const FString& Prompt, float Temperature = 0.7f);
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Generate Text Stream"))
+	void GenerateTextStream(const FString& Prompt);
 
 	/**
-	 * Generate text with streaming response and full configuration.
+	 * Generate text with streaming and full configuration.
 	 * @param Config Chat configuration with messages and settings
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Text Chat Stream"))
-	void TextChatStream(const FPlayKitChatConfig& Config);
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat", meta=(DisplayName="Generate Text Stream (Advanced)"))
+	void GenerateTextStreamAdvanced(const FPlayKitChatConfig& Config);
 
 	//========== Structured Output ==========//
 
@@ -101,21 +134,9 @@ public:
 	 * The response will be a valid JSON object matching your schema.
 	 * @param Prompt The generation prompt
 	 * @param SchemaJson JSON schema defining the output structure
-	 * @param SystemMessage Optional system message
-	 * @param Temperature Temperature for response
 	 */
 	UFUNCTION(BlueprintCallable, Category="PlayKit|Chat|Structured", meta=(DisplayName="Generate Structured"))
-	void GenerateStructured(
-		const FString& Prompt,
-		const FString& SchemaJson,
-		const FString& SystemMessage = TEXT(""),
-		float Temperature = 0.7f);
-
-	/** Delegate for structured output response */
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnStructuredResponse, bool, bSuccess, const FString&, JsonResult);
-
-	UPROPERTY(BlueprintAssignable, Category="PlayKit|Chat|Structured")
-	FOnStructuredResponse OnStructuredResponse;
+	void GenerateStructured(const FString& Prompt, const FString& SchemaJson);
 
 	//========== Cancel ==========//
 
@@ -136,7 +157,6 @@ private:
 	void BroadcastError(const FString& ErrorCode, const FString& ErrorMessage);
 
 private:
-	FString ModelName;
 	bool bIsProcessing = false;
 
 	// Streaming state

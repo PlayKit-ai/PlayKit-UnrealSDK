@@ -192,7 +192,7 @@ FString UPlayKitNPCClient::BuildSystemPrompt() const
 
 void UPlayKitNPCClient::SendChatRequest(bool bStream)
 {
-	const FString Url = FString::Printf(TEXT("%s/ai/%s/v1/chat"), *GetBaseUrl(), *GetGameId());
+	const FString Url = FString::Printf(TEXT("%s/ai/%s/v2/chat"), *GetBaseUrl(), *GetGameId());
 	CurrentRequest = CreateAuthenticatedRequest(Url);
 
 	// Build messages array
@@ -610,7 +610,7 @@ void UPlayKitNPCClient::GenerateReplyPredictions(int32 Count)
 		return;
 	}
 
-	const FString Url = FString::Printf(TEXT("%s/ai/%s/v1/chat"), *GetBaseUrl(), *GetGameId());
+	const FString Url = FString::Printf(TEXT("%s/ai/%s/v2/chat"), *GetBaseUrl(), *GetGameId());
 	PredictionsRequest = CreateAuthenticatedRequest(Url);
 
 	// Build messages for prediction

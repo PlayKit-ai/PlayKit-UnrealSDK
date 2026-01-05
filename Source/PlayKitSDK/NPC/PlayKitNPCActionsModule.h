@@ -110,13 +110,6 @@ struct FNPCAction
 
 	FNPCAction& AddEnumParam(const FString& Name, const FString& Desc, const TArray<FString>& Options, bool bRequired = true)
 	{
-		// Client-side validation: enum options cannot be empty
-		if (Options.Num() == 0)
-		{
-			UE_LOG(LogTemp, Error, TEXT("[PlayKit] AddEnumParam: Options array cannot be empty for parameter '%s'"), *Name);
-			return *this;
-		}
-
 		FNPCActionParam Param;
 		Param.Name = Name;
 		Param.Type = ENPCParamType::Enum;

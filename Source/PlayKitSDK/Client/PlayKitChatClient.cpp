@@ -10,12 +10,34 @@
 
 UPlayKitChatClient::UPlayKitChatClient()
 {
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPlayKitChatClient::Initialize(const FString& InModelName)
+void UPlayKitChatClient::BeginPlay()
 {
-	ModelName = InModelName;
-	UE_LOG(LogTemp, Log, TEXT("[PlayKit] ChatClient initialized with model: %s"), *ModelName);
+	Super::BeginPlay();
+
+	// Load default model from settings if not set in editor
+	if (ModelName.IsEmpty())
+	{
+		UPlayKitSettings* Settings = UPlayKitSettings::Get();
+		if (Settings && !Settings->DefaultChatModel.IsEmpty())
+		{
+			ModelName = Settings->DefaultChatModel;
+		}
+		else
+		{
+			ModelName = TEXT("gpt-4o-mini");
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PlayKit] ChatClient component initialized with model: %s"), *ModelName);
+}
+
+void UPlayKitChatClient::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelRequest();
+	Super::EndPlay(EndPlayReason);
 }
 
 FString UPlayKitChatClient::BuildRequestUrl() const
@@ -50,28 +72,46 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitChatClient::CreateAuthenti
 	return Request;
 }
 
-void UPlayKitChatClient::TextGenerationSimple(const FString& Prompt, float Temperature)
+void UPlayKitChatClient::GenerateText(const FString& Prompt)
 {
 	FPlayKitChatConfig Config;
+
+	// Add system prompt if configured
+	if (!SystemPrompt.IsEmpty())
+	{
+		Config.Messages.Add(FPlayKitChatMessage(TEXT("system"), SystemPrompt));
+	}
+
 	Config.Messages.Add(FPlayKitChatMessage(TEXT("user"), Prompt));
 	Config.Temperature = Temperature;
-	TextGeneration(Config);
+	Config.MaxTokens = MaxTokens;
+
+	GenerateTextAdvanced(Config);
 }
 
-void UPlayKitChatClient::TextGeneration(const FPlayKitChatConfig& Config)
+void UPlayKitChatClient::GenerateTextAdvanced(const FPlayKitChatConfig& Config)
 {
 	SendChatRequest(Config, false);
 }
 
-void UPlayKitChatClient::TextChatStreamSimple(const FString& Prompt, float Temperature)
+void UPlayKitChatClient::GenerateTextStream(const FString& Prompt)
 {
 	FPlayKitChatConfig Config;
+
+	// Add system prompt if configured
+	if (!SystemPrompt.IsEmpty())
+	{
+		Config.Messages.Add(FPlayKitChatMessage(TEXT("system"), SystemPrompt));
+	}
+
 	Config.Messages.Add(FPlayKitChatMessage(TEXT("user"), Prompt));
 	Config.Temperature = Temperature;
-	TextChatStream(Config);
+	Config.MaxTokens = MaxTokens;
+
+	GenerateTextStreamAdvanced(Config);
 }
 
-void UPlayKitChatClient::TextChatStream(const FPlayKitChatConfig& Config)
+void UPlayKitChatClient::GenerateTextStreamAdvanced(const FPlayKitChatConfig& Config)
 {
 	SendChatRequest(Config, true);
 }
@@ -297,7 +337,7 @@ void UPlayKitChatClient::HandleStreamComplete(FHttpRequestPtr Request, FHttpResp
 	OnStreamComplete.Broadcast(AccumulatedContent);
 }
 
-void UPlayKitChatClient::GenerateStructured(const FString& Prompt, const FString& SchemaJson, const FString& SystemMessage, float Temperature)
+void UPlayKitChatClient::GenerateStructured(const FString& Prompt, const FString& SchemaJson)
 {
 	if (bIsProcessing)
 	{
@@ -318,11 +358,11 @@ void UPlayKitChatClient::GenerateStructured(const FString& Prompt, const FString
 	// Build messages array
 	TArray<TSharedPtr<FJsonValue>> MessagesArray;
 
-	if (!SystemMessage.IsEmpty())
+	if (!SystemPrompt.IsEmpty())
 	{
 		TSharedPtr<FJsonObject> SystemMsg = MakeShared<FJsonObject>();
 		SystemMsg->SetStringField(TEXT("role"), TEXT("system"));
-		SystemMsg->SetStringField(TEXT("content"), SystemMessage);
+		SystemMsg->SetStringField(TEXT("content"), SystemPrompt);
 		MessagesArray.Add(MakeShared<FJsonValueObject>(SystemMsg));
 	}
 

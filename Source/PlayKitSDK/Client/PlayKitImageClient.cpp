@@ -13,12 +13,34 @@
 
 UPlayKitImageClient::UPlayKitImageClient()
 {
+	PrimaryComponentTick.bCanEverTick = false;
 }
 
-void UPlayKitImageClient::Initialize(const FString& InModelName)
+void UPlayKitImageClient::BeginPlay()
 {
-	ModelName = InModelName;
-	UE_LOG(LogTemp, Log, TEXT("[PlayKit] ImageClient initialized with model: %s"), *ModelName);
+	Super::BeginPlay();
+
+	// Load default model from settings if not set in editor
+	if (ModelName.IsEmpty())
+	{
+		UPlayKitSettings* Settings = UPlayKitSettings::Get();
+		if (Settings && !Settings->DefaultImageModel.IsEmpty())
+		{
+			ModelName = Settings->DefaultImageModel;
+		}
+		else
+		{
+			ModelName = TEXT("dall-e-3");
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[PlayKit] ImageClient component initialized with model: %s"), *ModelName);
+}
+
+void UPlayKitImageClient::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	CancelRequest();
+	Super::EndPlay(EndPlayReason);
 }
 
 TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitImageClient::CreateAuthenticatedRequest(const FString& Url)
@@ -43,25 +65,25 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitImageClient::CreateAuthent
 	return Request;
 }
 
-void UPlayKitImageClient::GenerateImage(const FString& Prompt, const FString& Size)
+void UPlayKitImageClient::GenerateImage(const FString& Prompt)
 {
 	FPlayKitImageOptions Options;
-	Options.Size = Size;
-	Options.Count = 1;
-	Options.Seed = -1;
-	SendImageRequest(Prompt, Options);
-}
-
-void UPlayKitImageClient::GenerateImageWithSeed(const FString& Prompt, const FString& Size, int32 Seed)
-{
-	FPlayKitImageOptions Options;
-	Options.Size = Size;
-	Options.Count = 1;
+	Options.Size = ImageSize;
+	Options.Count = ImageCount;
 	Options.Seed = Seed;
 	SendImageRequest(Prompt, Options);
 }
 
-void UPlayKitImageClient::GenerateImages(const FString& Prompt, const FPlayKitImageOptions& Options)
+void UPlayKitImageClient::GenerateImageWithSeed(const FString& Prompt, int32 InSeed)
+{
+	FPlayKitImageOptions Options;
+	Options.Size = ImageSize;
+	Options.Count = 1;
+	Options.Seed = InSeed;
+	SendImageRequest(Prompt, Options);
+}
+
+void UPlayKitImageClient::GenerateImagesAdvanced(const FString& Prompt, const FPlayKitImageOptions& Options)
 {
 	SendImageRequest(Prompt, Options);
 }
@@ -87,7 +109,7 @@ void UPlayKitImageClient::SendImageRequest(const FString& Prompt, const FPlayKit
 		return;
 	}
 
-	FString Url = FString::Printf(TEXT("%s/ai/%s/v1/image"), *Settings->GetBaseUrl(), *Settings->GameId);
+	FString Url = FString::Printf(TEXT("%s/ai/%s/v2/image"), *Settings->GetBaseUrl(), *Settings->GameId);
 
 	bIsProcessing = true;
 	LastPrompt = Prompt;

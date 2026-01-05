@@ -1280,8 +1280,27 @@ void SPlayKitSettingsWindow::HandleGamesResponse(FHttpRequestPtr Request, FHttpR
 		{
 			FString GameId = GameObj->GetStringField(TEXT("id"));
 			FString GameName = GameObj->GetStringField(TEXT("name"));
-			GameOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s (%s)"), *GameName, *GameId)));
-			UE_LOG(LogTemp, Log, TEXT("[PlayKit] Found game: %s (%s)"), *GameName, *GameId);
+			FString ChannelType = GameObj->HasField(TEXT("channel_type")) ? GameObj->GetStringField(TEXT("channel_type")) : TEXT("standalone");
+
+			// Format channel name for display
+			FString ChannelDisplay = ChannelType;
+			if (ChannelType == TEXT("standalone"))
+			{
+				ChannelDisplay = TEXT("Standalone");
+			}
+			else if (ChannelType.StartsWith(TEXT("steam")))
+			{
+				FString SteamSuffix = ChannelType.Replace(TEXT("steam_"), TEXT(""));
+				ChannelDisplay = FString::Printf(TEXT("Steam (%s)"), *SteamSuffix);
+			}
+			else
+			{
+				// Capitalize first letter
+				ChannelDisplay = ChannelType.Left(1).ToUpper() + ChannelType.Mid(1);
+			}
+
+			GameOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s [%s] (%s)"), *GameName, *ChannelDisplay, *GameId)));
+			UE_LOG(LogTemp, Log, TEXT("[PlayKit] Found game: %s [%s] (%s)"), *GameName, *ChannelDisplay, *GameId);
 		}
 	}
 

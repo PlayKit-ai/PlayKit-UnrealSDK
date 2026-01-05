@@ -2,9 +2,6 @@
 
 #include "PlayKitBlueprintLibrary.h"
 #include "PlayKitSettings.h"
-#include "Client/PlayKitChatClient.h"
-#include "Client/PlayKitImageClient.h"
-#include "Client/PlayKitSTTClient.h"
 #include "Client/PlayKitPlayerClient.h"
 #include "NPC/PlayKitNPCClient.h"
 
@@ -27,72 +24,9 @@ FString UPlayKitBlueprintLibrary::GetVersion()
 	return PLAYKIT_VERSION;
 }
 
-UPlayKitChatClient* UPlayKitBlueprintLibrary::CreateChatClient(const FString& ModelName)
+UPlayKitPlayerClient* UPlayKitBlueprintLibrary::GetPlayerClient(const UObject* WorldContextObject)
 {
-	UPlayKitSettings* Settings = UPlayKitSettings::Get();
-	if (!Settings)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Settings not found. Please configure PlayKit in Project Settings."));
-		return nullptr;
-	}
-
-	if (Settings->GameId.IsEmpty())
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Game ID not configured. Please set it in Project Settings > PlayKit SDK."));
-		return nullptr;
-	}
-
-	UPlayKitChatClient* Client = NewObject<UPlayKitChatClient>(GetTransientPackage(), NAME_None, RF_Transient);
-	FString Model = ModelName.IsEmpty() ? Settings->DefaultChatModel : ModelName;
-	Client->Initialize(Model);
-	return Client;
-}
-
-UPlayKitImageClient* UPlayKitBlueprintLibrary::CreateImageClient(const FString& ModelName)
-{
-	UPlayKitSettings* Settings = UPlayKitSettings::Get();
-	if (!Settings)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Settings not found. Please configure PlayKit in Project Settings."));
-		return nullptr;
-	}
-
-	if (Settings->GameId.IsEmpty())
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Game ID not configured. Please set it in Project Settings > PlayKit SDK."));
-		return nullptr;
-	}
-
-	UPlayKitImageClient* Client = NewObject<UPlayKitImageClient>(GetTransientPackage(), NAME_None, RF_Transient);
-	FString Model = ModelName.IsEmpty() ? Settings->DefaultImageModel : ModelName;
-	Client->Initialize(Model);
-	return Client;
-}
-
-UPlayKitSTTClient* UPlayKitBlueprintLibrary::CreateSTTClient(const FString& ModelName)
-{
-	UPlayKitSettings* Settings = UPlayKitSettings::Get();
-	if (!Settings)
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Settings not found. Please configure PlayKit in Project Settings."));
-		return nullptr;
-	}
-
-	if (Settings->GameId.IsEmpty())
-	{
-		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Game ID not configured. Please set it in Project Settings > PlayKit SDK."));
-		return nullptr;
-	}
-
-	UPlayKitSTTClient* Client = NewObject<UPlayKitSTTClient>(GetTransientPackage(), NAME_None, RF_Transient);
-	Client->Initialize(ModelName);
-	return Client;
-}
-
-UPlayKitPlayerClient* UPlayKitBlueprintLibrary::GetPlayerClient()
-{
-	// Return singleton instance
-	return UPlayKitPlayerClient::Get();
+	return UPlayKitPlayerClient::Get(WorldContextObject);
 }
 
 void UPlayKitBlueprintLibrary::SetupNPC(UPlayKitNPCClient* NPCClient, const FString& ModelName)

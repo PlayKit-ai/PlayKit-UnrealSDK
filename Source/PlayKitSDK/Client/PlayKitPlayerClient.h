@@ -3,13 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/NoExportTypes.h"
+#include "Subsystems/GameInstanceSubsystem.h"
 #include "Interfaces/IHttpRequest.h"
 #include "PlayKitTypes.h"
 #include "PlayKitPlayerClient.generated.h"
 
 /**
- * PlayKit Player Client
+ * PlayKit Player Client Subsystem
  * Manages player information, credits, and authentication.
  *
  * Features:
@@ -19,20 +19,25 @@
  * - JWT token exchange
  *
  * Usage:
- * UPlayKitPlayerClient* PlayerClient = UPlayKitBlueprintLibrary::GetPlayerClient();
+ * UPlayKitPlayerClient* PlayerClient = UPlayKitPlayerClient::Get(this);
  * PlayerClient->OnPlayerInfoUpdated.AddDynamic(this, &AMyActor::HandlePlayerInfo);
  * PlayerClient->GetPlayerInfo();
  */
-UCLASS(BlueprintType)
-class PLAYKITSDK_API UPlayKitPlayerClient : public UObject
+UCLASS()
+class PLAYKITSDK_API UPlayKitPlayerClient : public UGameInstanceSubsystem
 {
 	GENERATED_BODY()
 
 public:
 	UPlayKitPlayerClient();
 
-	/** Get the singleton instance */
-	static UPlayKitPlayerClient* Get();
+	// Subsystem lifecycle
+	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
+	virtual void Deinitialize() override;
+
+	/** Get the subsystem instance */
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Player", meta=(WorldContext="WorldContextObject"))
+	static UPlayKitPlayerClient* Get(const UObject* WorldContextObject);
 
 	//========== Events ==========//
 
@@ -126,8 +131,6 @@ private:
 	void BroadcastError(const FString& ErrorMessage);
 
 private:
-	static UPlayKitPlayerClient* SingletonInstance;
-
 	FPlayKitPlayerInfo CachedPlayerInfo;
 	FString CurrentJWT;
 

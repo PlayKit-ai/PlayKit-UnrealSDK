@@ -14,9 +14,9 @@ FString UPlayKitSTTComponent::GetTranscriptionUrl() const
 	UPlayKitSettings* Settings = UPlayKitSettings::Get();
 	if (Settings)
 	{
-		return FString::Printf(TEXT("%s/ai/%s/v1/audio/transcriptions"), *Settings->GetBaseUrl(), *Settings->GameId);
+		return FString::Printf(TEXT("%s/ai/%s/v2/audio/transcriptions"), *Settings->GetBaseUrl(), *Settings->GameId);
 	}
-	return TEXT("https://playkit.ai/ai/v1/audio/transcriptions");
+	return TEXT("https://playkit.ai/ai/v2/audio/transcriptions");
 }
 
 FString UPlayKitSTTComponent::GetAuthToken() const
@@ -176,7 +176,7 @@ void UPlayKitSTTComponent::UploadRecordingJson(const FString& AuthToken, const F
 		UE_LOG(LogTemp, Error, TEXT("[STT] UploadRecordingJson: Load file failed: %s"), *LastSavedFilePath);
 		return;
 	}
-	FString Model = Request.model.IsEmpty() ? TEXT("whisper-1") : Request.model;
+	FString Model = Request.model.IsEmpty() ? TEXT("whisper-large") : Request.model;
 	FString Lang = Request.language.IsEmpty() ? TEXT("en") : Request.language;
 	FString Prompt = Request.prompt;
 	FString AudioB64 = FBase64::Encode(FileData);

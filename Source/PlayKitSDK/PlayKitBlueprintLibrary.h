@@ -7,20 +7,21 @@
 #include "PlayKitTypes.h"
 #include "PlayKitBlueprintLibrary.generated.h"
 
-class UPlayKitChatClient;
-class UPlayKitImageClient;
-class UPlayKitSTTClient;
 class UPlayKitPlayerClient;
 class UPlayKitNPCClient;
 
 /**
  * PlayKit Blueprint Function Library
- * Provides static functions to access PlayKit AI services from Blueprints.
+ * Provides static utility functions for PlayKit SDK.
  *
  * Usage:
  * 1. Ensure your game is configured in Project Settings > Plugins > PlayKit SDK
- * 2. Use CreateChatClient/CreateImageClient to get AI clients
- * 3. Call methods on the returned clients
+ * 2. Add PlayKit components (ChatClient, ImageClient, STTClient, NPCClient) to your Actors
+ * 3. Configure component properties in the Details panel
+ * 4. Bind to component events using the "+" button
+ * 5. Call component methods to trigger requests
+ *
+ * For player info and credits, use GetPlayerClient() to access the PlayerClient subsystem.
  */
 UCLASS()
 class PLAYKITSDK_API UPlayKitBlueprintLibrary : public UBlueprintFunctionLibrary
@@ -38,38 +39,15 @@ public:
 	UFUNCTION(BlueprintPure, Category="PlayKit|SDK", meta=(DisplayName="Get SDK Version"))
 	static FString GetVersion();
 
-	//========== Client Factory ==========//
+	//========== Player Client ==========//
 
 	/**
-	 * Create a Chat Client for text generation and conversations.
-	 * @param ModelName Optional model override. If empty, uses default from settings.
-	 * @return A new Chat Client instance
+	 * Get the Player Client subsystem for user info and credits management.
+	 * @param WorldContextObject Any world context object
+	 * @return The Player Client subsystem instance
 	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Factory", meta=(DisplayName="Create Chat Client"))
-	static UPlayKitChatClient* CreateChatClient(const FString& ModelName = TEXT(""));
-
-	/**
-	 * Create an Image Client for AI image generation.
-	 * @param ModelName Optional model override. If empty, uses default from settings.
-	 * @return A new Image Client instance
-	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Factory", meta=(DisplayName="Create Image Client"))
-	static UPlayKitImageClient* CreateImageClient(const FString& ModelName = TEXT(""));
-
-	/**
-	 * Create a Speech-to-Text Client for audio transcription.
-	 * @param ModelName Model to use (e.g., "whisper-1")
-	 * @return A new STT Client instance
-	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Factory", meta=(DisplayName="Create STT Client"))
-	static UPlayKitSTTClient* CreateSTTClient(const FString& ModelName = TEXT("whisper-1"));
-
-	/**
-	 * Get the Player Client for user info and credits management.
-	 * @return The Player Client singleton
-	 */
-	UFUNCTION(BlueprintCallable, Category="PlayKit|Factory", meta=(DisplayName="Get Player Client"))
-	static UPlayKitPlayerClient* GetPlayerClient();
+	UFUNCTION(BlueprintCallable, Category="PlayKit|Player", meta=(DisplayName="Get Player Client", WorldContext="WorldContextObject"))
+	static UPlayKitPlayerClient* GetPlayerClient(const UObject* WorldContextObject);
 
 	//========== NPC Setup ==========//
 
