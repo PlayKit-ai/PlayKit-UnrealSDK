@@ -10,7 +10,7 @@
  * PlayKit SDK Settings
  * Configure your PlayKit integration from Project Settings > Plugins > PlayKit SDK
  */
-UCLASS(config=Game, defaultconfig, meta=(DisplayName="PlayKit SDK"))
+UCLASS(config=PlayKit, defaultconfig, meta=(DisplayName="PlayKit SDK"))
 class PLAYKITSDK_API UPlayKitSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -87,6 +87,10 @@ public:
 	UFUNCTION(BlueprintPure, Category="PlayKit")
 	bool HasDeveloperToken() const;
 
+	/** Save Config */
+	UFUNCTION(CallInEditor)
+	void SaveSettings();
+	
 	/** Get the stored developer token */
 	FString GetDeveloperToken() const;
 
