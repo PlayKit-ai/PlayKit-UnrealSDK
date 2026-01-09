@@ -41,6 +41,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default Image Model"))
 	FString DefaultImageModel = TEXT("dall-e-3");
 
+	/** Default AI model for speech-to-text transcription */
+	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default Transcription Model"))
+	FString DefaultTranscriptionModel = TEXT("default-transcription-model");
+
+	/** Default AI model for 3D generation */
+	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default 3D Model"))
+	FString Default3DModel = TEXT("default-3d-model");
+
 	/** Model to use for fast operations (compaction, predictions) */
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Fast Model"))
 	FString FastModel = TEXT("gpt-4o-mini");
