@@ -472,7 +472,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildModelsSection()
 				{
 					SelectedChatModel = NewValue;
 					Settings->DefaultChatModel = *NewValue;
-					Settings->SaveConfig();
+					Settings->SaveSettings();
 					UE_LOG(LogTemp, Log, TEXT("[PlayKit] Selected chat model: %s"), **NewValue);
 				}
 			})
@@ -526,7 +526,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildModelsSection()
 				{
 					SelectedImageModel = NewValue;
 					Settings->DefaultImageModel = *NewValue;
-					Settings->SaveConfig();
+					Settings->SaveSettings();
 					UE_LOG(LogTemp, Log, TEXT("[PlayKit] Selected image model: %s"), **NewValue);
 				}
 			})
@@ -712,7 +712,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 					if (Settings)
 					{
 						Settings->CustomBaseUrl = NewText.ToString();
-						Settings->SaveConfig();
+						Settings->SaveSettings();
 					}
 				})
 			]
@@ -737,7 +737,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 					if (Settings)
 					{
 						Settings->bIgnoreDeveloperToken = (NewState == ECheckBoxState::Checked);
-						Settings->SaveConfig();
+						Settings->SaveSettings();
 					}
 				})
 			]
@@ -770,7 +770,8 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 					if (Settings)
 					{
 						Settings->bEnableDebugLogging = (NewState == ECheckBoxState::Checked);
-						Settings->SaveConfig();
+						UE_LOG(LogTemp, Log, TEXT("NewState = %hs"), Settings->bEnableDebugLogging ? "True" : "False");
+						Settings->SaveSettings();
 					}
 				})
 			]
@@ -1447,7 +1448,7 @@ void SPlayKitSettingsWindow::OnGameSelected(TSharedPtr<FString> NewValue, ESelec
 	if (OpenParen != INDEX_NONE && CloseParen != INDEX_NONE)
 	{
 		Settings->GameId = Selected.Mid(OpenParen + 1, CloseParen - OpenParen - 1);
-		Settings->SaveConfig();
+		Settings->SaveSettings();
 		LoadModels();
 	}
 }
