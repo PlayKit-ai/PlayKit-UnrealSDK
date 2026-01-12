@@ -10,7 +10,7 @@
  * PlayKit SDK Settings
  * Configure your PlayKit integration from Project Settings > Plugins > PlayKit SDK
  */
-UCLASS(config=Game, defaultconfig, meta=(DisplayName="PlayKit SDK"))
+UCLASS(config=PlayKit, defaultconfig, meta=(DisplayName="PlayKit SDK"))
 class PLAYKITSDK_API UPlayKitSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -113,6 +113,10 @@ public:
 	/** Clear the player token */
 	void ClearPlayerToken();
 
+	/** Save Config */
+	UFUNCTION(CallInEditor)
+	void SaveSettings();
+	
 	//========== UDeveloperSettings Interface ==========//
 
 	virtual FName GetCategoryName() const override { return FName(TEXT("Plugins")); }
