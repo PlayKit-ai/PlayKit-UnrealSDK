@@ -12,12 +12,6 @@ const FString UPlayKitSettings::PlayerTokenKey = TEXT("PlayKit_PlayerToken");
 
 UPlayKitSettings::UPlayKitSettings()
 {
-	this->CategoryName = TEXT("Plugins");
-	this->SectionName = TEXT("PlayKit SDK Setting");
-	
-	// 配置默认配置
-	CustomBaseUrl = TEXT("https://api.playkit.ai");
-	
 }
 
 UPlayKitSettings* UPlayKitSettings::Get()
@@ -42,11 +36,6 @@ FString UPlayKitSettings::GetAIBaseUrl() const
 bool UPlayKitSettings::HasDeveloperToken() const
 {
 	return !GetDeveloperToken().IsEmpty();
-}
-
-void UPlayKitSettings::SaveSettings()
-{
-	TryUpdateDefaultConfigFile();
 }
 
 FString UPlayKitSettings::GetDeveloperToken() const

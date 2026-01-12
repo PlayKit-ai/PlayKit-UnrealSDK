@@ -10,7 +10,7 @@
  * PlayKit SDK Settings
  * Configure your PlayKit integration from Project Settings > Plugins > PlayKit SDK
  */
-UCLASS(config=PlayKit, defaultconfig, meta=(DisplayName="PlayKit SDK"))
+UCLASS(config=Game, defaultconfig, meta=(DisplayName="PlayKit SDK"))
 class PLAYKITSDK_API UPlayKitSettings : public UDeveloperSettings
 {
 	GENERATED_BODY()
@@ -35,11 +35,11 @@ public:
 
 	/** Default AI model for chat/NPC conversations */
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default Chat Model"))
-	FString DefaultChatModel = TEXT("gpt-4o-mini");
+	FString DefaultChatModel = TEXT("default-chat");
 
 	/** Default AI model for image generation */
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default Image Model"))
-	FString DefaultImageModel = TEXT("dall-e-3");
+	FString DefaultImageModel = TEXT("default-image");
 
 	/** Default AI model for speech-to-text transcription */
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Default Transcription Model"))
@@ -51,7 +51,7 @@ public:
 
 	/** Model to use for fast operations (compaction, predictions) */
 	UPROPERTY(config, EditAnywhere, Category="AI Models", meta=(DisplayName="Fast Model"))
-	FString FastModel = TEXT("gpt-4o-mini");
+	FString FastModel = TEXT("default-chat-fast");
 
 	//========== Context Management ==========//
 
@@ -69,7 +69,7 @@ public:
 
 	//========== Advanced ==========//
 
-	/** Override the default API base URL (leave empty to use default: https://playkit.ai) */
+	/** Override the default API base URL (leave empty to use default: https://api.playkit.ai) */
 	UPROPERTY(config, EditAnywhere, Category="Advanced", meta=(DisplayName="Custom Base URL"))
 	FString CustomBaseUrl;
 
@@ -95,10 +95,6 @@ public:
 	UFUNCTION(BlueprintPure, Category="PlayKit")
 	bool HasDeveloperToken() const;
 
-	/** Save Config */
-	UFUNCTION(CallInEditor)
-	void SaveSettings();
-	
 	/** Get the stored developer token */
 	FString GetDeveloperToken() const;
 

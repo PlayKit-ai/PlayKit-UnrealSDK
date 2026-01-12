@@ -472,7 +472,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildModelsSection()
 				{
 					SelectedChatModel = NewValue;
 					Settings->DefaultChatModel = *NewValue;
-					Settings->SaveSettings();
+					Settings->SaveConfig();
 					UE_LOG(LogTemp, Log, TEXT("[PlayKit] Selected chat model: %s"), **NewValue);
 				}
 			})
@@ -526,7 +526,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildModelsSection()
 				{
 					SelectedImageModel = NewValue;
 					Settings->DefaultImageModel = *NewValue;
-					Settings->SaveSettings();
+					Settings->SaveConfig();
 					UE_LOG(LogTemp, Log, TEXT("[PlayKit] Selected image model: %s"), **NewValue);
 				}
 			})
@@ -706,13 +706,13 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 				.Text_Lambda([this]() {
 					return Settings ? FText::FromString(Settings->CustomBaseUrl) : FText::GetEmpty();
 				})
-				.HintText(LOCTEXT("BaseUrlHint", "https://playkit.ai"))
+				.HintText(LOCTEXT("BaseUrlHint", "https://api.playkit.ai"))
 				.OnTextCommitted_Lambda([this](const FText& NewText, ETextCommit::Type CommitType)
 				{
 					if (Settings)
 					{
 						Settings->CustomBaseUrl = NewText.ToString();
-						Settings->SaveSettings();
+						Settings->SaveConfig();
 					}
 				})
 			]
@@ -737,7 +737,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 					if (Settings)
 					{
 						Settings->bIgnoreDeveloperToken = (NewState == ECheckBoxState::Checked);
-						Settings->SaveSettings();
+						Settings->SaveConfig();
 					}
 				})
 			]
@@ -770,8 +770,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAdvancedSection()
 					if (Settings)
 					{
 						Settings->bEnableDebugLogging = (NewState == ECheckBoxState::Checked);
-						UE_LOG(LogTemp, Log, TEXT("NewState = %hs"), Settings->bEnableDebugLogging ? "True" : "False");
-						Settings->SaveSettings();
+						Settings->SaveConfig();
 					}
 				})
 			]
@@ -853,7 +852,7 @@ TSharedRef<SWidget> SPlayKitSettingsWindow::BuildAboutSection()
 			.Text(LOCTEXT("WebsiteButton", "Website"))
 			.OnClicked_Lambda([]()
 			{
-				FPlatformProcess::LaunchURL(TEXT("https://playkit.ai"), nullptr, nullptr);
+				FPlatformProcess::LaunchURL(TEXT("https://api.playkit.ai"), nullptr, nullptr);
 				return FReply::Handled();
 			})
 		]
@@ -1448,7 +1447,7 @@ void SPlayKitSettingsWindow::OnGameSelected(TSharedPtr<FString> NewValue, ESelec
 	if (OpenParen != INDEX_NONE && CloseParen != INDEX_NONE)
 	{
 		Settings->GameId = Selected.Mid(OpenParen + 1, CloseParen - OpenParen - 1);
-		Settings->SaveSettings();
+		Settings->SaveConfig();
 		LoadModels();
 	}
 }

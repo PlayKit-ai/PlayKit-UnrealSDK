@@ -74,9 +74,16 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "PlayKit|STT|Delegate")
 	FPlayKitTranscriptionErrorDelegate OnPlayKitTranscriptionError;
 
+public:
+	//========== Configuration Properties (Edit in Details Panel) ==========//
+
+	/** The AI model to use for transcription */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|STT")
+	FString ModelName;
+
 private:
 	UAudioCaptureComponent* CaptureComponent;
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="STT", meta=(AllowPrivateAccess="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="PlayKit|STT", meta=(AllowPrivateAccess="true"))
 	USoundSubmix* RecordingSubmix = nullptr;
 
 	FString LastSavedFilePath;

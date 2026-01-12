@@ -10,6 +10,19 @@
 
 void FPlayKitSDKEditorModule::StartupModule()
 {
+	// Register settings
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->RegisterSettings(
+			"Project",
+			"Plugins",
+			"PlayKitSDK",
+			LOCTEXT("PlayKitSettingsName", "PlayKit SDK"),
+			LOCTEXT("PlayKitSettingsDescription", "Configure PlayKit SDK settings"),
+			GetMutableDefault<UPlayKitSettings>()
+		);
+	}
+
 	// Register menus after ToolMenus is ready
 	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(
 		this, &FPlayKitSDKEditorModule::RegisterMenus));
@@ -19,6 +32,12 @@ void FPlayKitSDKEditorModule::StartupModule()
 
 void FPlayKitSDKEditorModule::ShutdownModule()
 {
+	// Unregister settings
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+	{
+		SettingsModule->UnregisterSettings("Project", "Plugins", "PlayKitSDK");
+	}
+
 	// Unregister menus
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);

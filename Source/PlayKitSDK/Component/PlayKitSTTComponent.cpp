@@ -16,7 +16,7 @@ FString UPlayKitSTTComponent::GetTranscriptionUrl() const
 	{
 		return FString::Printf(TEXT("%s/ai/%s/v2/audio/transcriptions"), *Settings->GetBaseUrl(), *Settings->GameId);
 	}
-	return TEXT("https://playkit.ai/ai/v2/audio/transcriptions");
+	return TEXT("https://api.playkit.ai/ai/v2/audio/transcriptions");
 }
 
 FString UPlayKitSTTComponent::GetAuthToken() const
@@ -50,7 +50,22 @@ UPlayKitSTTComponent::UPlayKitSTTComponent()
 void UPlayKitSTTComponent::BeginPlay()
 {
 	Super::BeginPlay();
-	UE_LOG(LogTemp, Log, TEXT("[STT] BeginPlay"));
+
+	// Load default model from settings if not set
+	if (ModelName.IsEmpty())
+	{
+		UPlayKitSettings* Settings = UPlayKitSettings::Get();
+		if (Settings && !Settings->DefaultTranscriptionModel.IsEmpty())
+		{
+			ModelName = Settings->DefaultTranscriptionModel;
+		}
+		else
+		{
+			ModelName = TEXT("default-transcription-model");
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("[STT] BeginPlay - Model: %s"), *ModelName);
 }
 
 void UPlayKitSTTComponent::StartRecording()
@@ -176,7 +191,8 @@ void UPlayKitSTTComponent::UploadRecordingJson(const FString& AuthToken, const F
 		UE_LOG(LogTemp, Error, TEXT("[STT] UploadRecordingJson: Load file failed: %s"), *LastSavedFilePath);
 		return;
 	}
-	FString Model = Request.model.IsEmpty() ? TEXT("whisper-large") : Request.model;
+	// Use Request.model if provided, otherwise use component's ModelName
+	FString Model = Request.model.IsEmpty() ? ModelName : Request.model;
 	FString Lang = Request.language.IsEmpty() ? TEXT("en") : Request.language;
 	FString Prompt = Request.prompt;
 	FString AudioB64 = FBase64::Encode(FileData);
