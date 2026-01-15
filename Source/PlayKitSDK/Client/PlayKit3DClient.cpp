@@ -330,6 +330,51 @@ void UPlayKit3DClient::HandlePollResponse(FHttpRequestPtr Request, FHttpResponse
 
 	if (ResponseCode != 200)
 	{
+		// Handle rate limiting (429) or TASK_POLL_TOO_FAST error - slow down instead of failing
+		bool bIsPollTooFast = (ResponseCode == 429);
+
+		// Also check if the error code in response indicates polling too fast
+		if (!bIsPollTooFast)
+		{
+			TSharedPtr<FJsonObject> ErrorJson;
+			TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(ResponseContent);
+			if (FJsonSerializer::Deserialize(Reader, ErrorJson) && ErrorJson.IsValid())
+			{
+				FString ErrorCode;
+				if (ErrorJson->TryGetStringField(TEXT("code"), ErrorCode) ||
+				    ErrorJson->TryGetStringField(TEXT("error_code"), ErrorCode))
+				{
+					bIsPollTooFast = ErrorCode.Contains(TEXT("POLL_TOO_FAST")) ||
+					                 ErrorCode.Contains(TEXT("RATE_LIMIT")) ||
+					                 ErrorCode.Contains(TEXT("TOO_MANY_REQUESTS"));
+				}
+
+				// Check nested error object
+				const TSharedPtr<FJsonObject>* NestedError;
+				if (!bIsPollTooFast && ErrorJson->TryGetObjectField(TEXT("error"), NestedError) && NestedError)
+				{
+					if ((*NestedError)->TryGetStringField(TEXT("code"), ErrorCode))
+					{
+						bIsPollTooFast = ErrorCode.Contains(TEXT("POLL_TOO_FAST")) ||
+						                 ErrorCode.Contains(TEXT("RATE_LIMIT")) ||
+						                 ErrorCode.Contains(TEXT("TOO_MANY_REQUESTS"));
+					}
+				}
+			}
+		}
+
+		if (bIsPollTooFast)
+		{
+			// Slow down polling - double the interval with a minimum of 10 seconds
+			int32 NewInterval = FMath::Max(PollIntervalSeconds * 2, 10);
+			UE_LOG(LogTemp, Warning, TEXT("[PlayKit] Polling too fast, slowing down from %d to %d seconds"),
+				PollIntervalSeconds, NewInterval);
+			PollIntervalSeconds = NewInterval;
+			StartPolling(PollIntervalSeconds);
+			return; // Continue polling at slower rate
+		}
+
+		// For other errors, fail the task
 		StopPolling();
 		CleanupCurrentTask();
 		BroadcastError(FString::FromInt(ResponseCode), ResponseContent);
