@@ -83,6 +83,14 @@ TSharedRef<IHttpRequest, ESPMode::ThreadSafe> UPlayKitPlayerClient::CreateAuthen
 		{
 			Request->SetHeader(TEXT("Authorization"), FString::Printf(TEXT("Bearer %s"), *Token));
 		}
+
+		// Add X-Game-Id header to support Global Developer Token
+		// When using a Global Developer Token (without game_id), the server needs
+		// to know which game's owner wallet to query
+		if (!Settings->GameId.IsEmpty())
+		{
+			Request->SetHeader(TEXT("X-Game-Id"), Settings->GameId);
+		}
 	}
 
 	return Request;
