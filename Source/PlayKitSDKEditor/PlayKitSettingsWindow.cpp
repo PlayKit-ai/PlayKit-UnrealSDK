@@ -1352,6 +1352,7 @@ void SPlayKitSettingsWindow::HandleGamesResponse(FHttpRequestPtr Request, FHttpR
 	if (ResponseCode != 200)
 	{
 		UE_LOG(LogTemp, Error, TEXT("[PlayKit] Games request failed: HTTP %d"), ResponseCode);
+		OnLogoutClicked();
 		return;
 	}
 
@@ -1384,6 +1385,7 @@ void SPlayKitSettingsWindow::HandleGamesResponse(FHttpRequestPtr Request, FHttpR
 	for (const TSharedPtr<FJsonValue>& Value : *GamesArray)
 	{
 		TSharedPtr<FJsonObject> GameObj = Value->AsObject();
+		bool bFindSettingsGameID = false;
 		if (GameObj.IsValid())
 		{
 			FString GameId = GameObj->GetStringField(TEXT("id"));
@@ -1408,6 +1410,11 @@ void SPlayKitSettingsWindow::HandleGamesResponse(FHttpRequestPtr Request, FHttpR
 			}
 
 			GameOptions.Add(MakeShared<FString>(FString::Printf(TEXT("%s [%s] (%s)"), *GameName, *ChannelDisplay, *GameId)));
+			if (Settings->GameId == GameId)
+			{
+				UE_LOG(LogTemp, Log, TEXT("[PlayKit] Found Settings Game : %s"), **GameOptions.Last());
+				OnGameSelected(GameOptions.Last(), ESelectInfo::Type::OnMouseClick);
+			}
 			UE_LOG(LogTemp, Log, TEXT("[PlayKit] Found game: %s [%s] (%s)"), *GameName, *ChannelDisplay, *GameId);
 		}
 	}
